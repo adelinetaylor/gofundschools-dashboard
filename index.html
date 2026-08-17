@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoFundSchools · Daily Dashboard</title>
+<style>
+  :root{
+    --green:#1E8E3E; --green-dk:#14672C; --gold:#E6A700; --gold-lt:#F7C948;
+    --ink:#12233B; --ink-2:#516072; --muted:#8A97A3;
+    --bg:#F2F7F3; --card:#FFFFFF; --line:#E4EBE6; --track:#E7ECE9;
+    --good:#1E8E3E; --warn:#E6A700; --bad:#D64545; --info:#2F6FB0;
+    --shadow:0 1px 3px rgba(18,35,59,.06),0 6px 20px rgba(18,35,59,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.45}
+  a{color:var(--green)}
+
+  /* ---------- Login gate ---------- */
+  #gate{position:fixed;inset:0;background:linear-gradient(160deg,#1E8E3E,#14672C);display:flex;align-items:center;justify-content:center;z-index:50}
+  #gate .box{background:#fff;border-radius:18px;padding:34px 30px;width:min(90vw,360px);box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center}
+  #gate h1{margin:0 0 4px;font-size:22px;color:var(--green-dk)}
+  #gate p{margin:0 0 18px;color:var(--ink-2);font-size:13px}
+  #gate input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:15px;text-align:center;outline:none}
+  #gate input:focus{border-color:var(--green)}
+  #gate button{margin-top:12px;width:100%;padding:12px;background:var(--green);color:#fff;border:0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+  #gate .err{color:var(--bad);font-size:12px;height:14px;margin-top:8px}
+
+  /* ---------- Layout ---------- */
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+  header.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between;margin-bottom:6px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:var(--green);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:18px}
+  .brand h1{font-size:20px;margin:0;letter-spacing:-.2px}
+  .brand h1 span{color:var(--green)}
+  .sub{color:var(--ink-2);font-size:12.5px;margin:2px 0 0}
+  .top-actions{display:flex;gap:8px;align-items:center}
+  .btn{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+  .btn:hover{border-color:var(--green);color:var(--green-dk)}
+  .btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+  .btn.primary:hover{background:var(--green-dk)}
+
+  /* ---------- KPI tiles ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:16px 0 6px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow)}
+  .kpi .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700}
+  .kpi .val{font-size:23px;font-weight:800;margin-top:3px;letter-spacing:-.5px}
+  .kpi .val small{font-size:13px;font-weight:600;color:var(--ink-2)}
+  .kpi.attn .val{color:var(--bad)}
+  .kpi.live .val{color:var(--green)}
+
+  /* ---------- Filters ---------- */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 12px}
+  .seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{border:0;background:#fff;padding:8px 13px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer}
+  .seg button.active{background:var(--green);color:#fff}
+  .toggle{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 11px;cursor:pointer;user-select:none}
+  .toggle input{accent-color:var(--green)}
+  .spacer{flex:1}
+
+  /* ---------- School cards ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 16px 14px;box-shadow:var(--shadow);position:relative;border-left:5px solid var(--line)}
+  .card.rl-good{border-left-color:var(--good)}
+  .card.rl-warn{border-left-color:var(--warn)}
+  .card.rl-bad{border-left-color:var(--bad)}
+  .card.rl-info{border-left-color:var(--info)}
+  .card.melissa{background:#FBFBFC}
+  .card .chead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .card h3{margin:0;font-size:16.5px;letter-spacing:-.2px}
+  .card .event{font-size:12px;color:var(--muted);margin-top:1px}
+  .phase{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .phase.live{background:#E7F4EC;color:var(--green-dk)}
+  .phase.soon{background:#FFF4DA;color:#8a6400}
+  .phase.ended{background:#EEF1F4;color:#5b6772}
+
+  .prog-row{display:flex;justify-content:space-between;align-items:baseline;margin:13px 0 5px}
+  .prog-row .amt{font-size:15px;font-weight:700}
+  .prog-row .amt small{color:var(--muted);font-weight:600;font-size:12px}
+  .prog-row .pct{font-size:15px;font-weight:800}
+  .pct.good{color:var(--good)} .pct.warn{color:var(--gold)} .pct.bad{color:var(--bad)}
+  .bar{height:9px;background:var(--track);border-radius:99px;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:99px;background:var(--green)}
+  .bar > i.warn{background:var(--gold)} .bar > i.bad{background:#E28C4A} .bar > i.over{background:linear-gradient(90deg,var(--green),var(--gold-lt))}
+
+  .meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:11px;font-size:12.5px;color:var(--ink-2)}
+  .meta b{color:var(--ink);font-weight:700}
+
+  .flags{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+  .flag{font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:7px;background:#F1F4F2;color:var(--ink-2)}
+  .flag.bad{background:#FCEBEB;color:var(--bad)} .flag.warn{background:#FFF4DA;color:#8a6400} .flag.good{background:#E7F4EC;color:var(--green-dk)}
+
+  .push{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:11px;border-top:1px dashed var(--line)}
+  .push .info{font-size:12.5px}
+  .push .info .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .dot.g{background:var(--good)} .dot.a{background:var(--gold)} .dot.r{background:var(--bad)}
+  .push .info .note{color:var(--muted);font-size:11.5px;margin-top:1px}
+  .push button{border:1.5px solid var(--green);background:#fff;color:var(--green-dk);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .push button.done{background:var(--green);color:#fff;border-color:var(--green)}
+
+  /* ---------- Paste panel ---------- */
+  #paste{display:none;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:6px 0 16px;box-shadow:var(--shadow)}
+  #paste h4{margin:0 0 6px;font-size:14px}
+  #paste p{margin:0 0 10px;font-size:12.5px;color:var(--ink-2)}
+  #paste textarea{width:100%;min-height:110px;border:1.5px solid var(--line);border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;resize:vertical}
+  #paste .row{display:flex;gap:8px;margin-top:10px;align-items:center}
+  #paste code{background:#F1F4F2;padding:2px 5px;border-radius:5px;font-size:11.5px}
+  .msg{font-size:12.5px;font-weight:600}
+  .foot{margin-top:22px;font-size:11.5px;color:var(--muted);text-align:center}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- ===== Login gate ===== -->
+<div id="gate">
+  <div class="box">
+    <h1>🏃 GoFundSchools</h1>
+    <p>Daily Fundraiser Dashboard</p>
+    <input id="pw" type="password" placeholder="Enter password" autocomplete="off">
+    <div class="err" id="pwerr"></div>
+    <button onclick="tryLogin()">Open Dashboard</button>
+  </div>
+</div>
+
+<!-- ===== App ===== -->
+<div class="wrap" id="app" style="display:none">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">G</div>
+      <div>
+        <h1>Daily <span>Fundraiser</span> Dashboard</h1>
+        <p class="sub" id="subline">Loading…</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn" onclick="togglePaste()">↻ Update progress</button>
+      <button class="btn" onclick="location.reload()">Refresh</button>
+    </div>
+  </header>
+
+  <div id="paste">
+    <h4>Paste today's progress export</h4>
+    <p>Run your saved Supabase query, export as CSV, and paste it here. Expected columns: <code>school_name, goal, raised, donations, classrooms</code>. Matched by school name; only the numbers update.</p>
+    <textarea id="pastebox" placeholder="school_name,goal,raised,donations,classrooms&#10;New Georgia,15000,3980,121,19&#10;..."></textarea>
+    <div class="row">
+      <button class="btn primary" onclick="applyPaste()">Apply update</button>
+      <button class="btn" onclick="clearOverride()">Clear my updates</button>
+      <span class="msg" id="pastemsg"></span>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="filters">
+    <div class="seg" id="segPhase">
+      <button data-f="attn" class="active">Needs attention</button>
+      <button data-f="all">All</button>
+      <button data-f="live">Live now</button>
+      <button data-f="soon">Launching soon</button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="showMelissa"> Show Melissa's</label>
+    <label class="toggle"><input type="checkbox" id="showTest"> Show test</label>
+    <span class="spacer"></span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+/* ============ CONFIG ============ */
+const PASSWORD = "gofund2026";          // change me anytime
+const STALE_WARN = 4, STALE_BAD = 7;    // days-since-contact thresholds
+
+/* embedded fallback seed (used only if data.json can't be fetched) */
+const SEED = {"generated":"2026-08-17","schools":[
+{"name":"New Georgia","event":"New Georgia Fun Run","owner":"Adeline","test":false,"goal":15000,"raised":3661,"donations":113,"classrooms":19,"start":"2026-08-05","end":"2026-08-27","lastContact":"2026-08-07","lastContactNote":"reply to their site question"},
+{"name":"Oak Grove","event":"Oak Grove Fun Run","owner":"Adeline","test":false,"goal":6000,"raised":7442,"donations":162,"classrooms":30,"start":"2026-08-06","end":"2026-08-26","lastContact":"2026-08-12","lastContactNote":"event-day logistics"},
+{"name":"Sedalia Park","event":"Run in the Park","owner":"Adeline","test":false,"goal":22000,"raised":7687,"donations":167,"classrooms":39,"start":"2026-08-10","end":"2026-08-20","lastContact":"2026-08-17","lastContactNote":"final-days push (foundation + teacher email)"},
+{"name":"Garden Hills","event":"Grizzly Groove and Run","owner":"Adeline","test":false,"goal":15000,"raised":7505,"donations":105,"classrooms":27,"start":"2026-08-11","end":"2026-08-25","lastContact":"2026-08-14","lastContactNote":"reply to week 1 update"},
+{"name":"Knox","event":"Knox Fun Run","owner":"Adeline","test":false,"goal":25000,"raised":0,"donations":0,"classrooms":45,"start":"2026-08-17","end":"2026-09-02","lastContact":"2026-08-12","lastContactNote":"QR code + teacher list"},
+{"name":"Kennesaw","event":"KES Rodeo Run","owner":"Adeline","test":false,"goal":30000,"raised":0,"donations":0,"classrooms":27,"start":"2026-08-18","end":"2026-09-04","lastContact":"2026-08-14","lastContactNote":"reply, pushing fundraiser"},
+{"name":"Nicholson","event":"Nicholson Stars Fun Run","owner":"Adeline","test":false,"goal":25000,"raised":735,"donations":10,"classrooms":24,"start":"2026-08-19","end":"2026-09-03","lastContact":"2026-08-11","lastContactNote":"site questions thread"},
+{"name":"Resurgence Hall","event":"Resurgence Hall Fun Run","owner":"Adeline","test":false,"goal":30000,"raised":6477,"donations":121,"classrooms":32,"start":"2026-08-27","end":"2026-09-22","lastContact":"2026-08-14","lastContactNote":"registration issue"},
+{"name":"Clark Creek","event":"Red Hawk Rally","owner":"Adeline","test":false,"goal":25000,"raised":0,"donations":0,"classrooms":56,"start":"2026-08-31","end":"2026-09-29","lastContact":"2026-08-13","lastContactNote":"site upload email"},
+{"name":"Timber Ridge","event":"Run with the Pack","owner":"Adeline","test":false,"goal":60000,"raised":300,"donations":2,"classrooms":25,"start":"2026-08-31","end":"2026-09-11","lastContact":"2026-08-14","lastContactNote":"site questions"},
+{"name":"Mashburn","event":"Mashburn Move It","owner":"Adeline","test":false,"goal":30000,"raised":0,"donations":0,"classrooms":1,"start":"2026-09-01","end":"2026-09-17","lastContact":"2026-08-14","lastContactNote":"meeting"},
+{"name":"Tritt","event":"Tiger Dash","owner":"Adeline","test":false,"goal":80000,"raised":0,"donations":0,"classrooms":36,"start":"2026-09-01","end":"2026-09-18","lastContact":"2026-08-14","lastContactNote":"site email"},
+{"name":"Rocky Mount","event":"The Roadrunner Race","owner":"Melissa","test":false,"goal":50000,"raised":14067,"donations":220,"classrooms":23,"start":"2026-08-11","end":"2026-08-28","lastContact":"2026-08-11","lastContactNote":"turn off confirmation emails"},
+{"name":"Hickory Flat","event":"Hickory Flat Run Wild","owner":"Melissa","test":false,"goal":75000,"raised":0,"donations":0,"classrooms":39,"start":"2026-08-25","end":"2026-09-04","lastContact":"2026-08-11","lastContactNote":"site questions email"},
+{"name":"Chalker","event":"Chalker Cheetah Charge","owner":"Melissa","test":false,"goal":30000,"raised":0,"donations":0,"classrooms":35,"start":"2026-08-28","end":"2026-09-10","lastContact":"2026-08-13","lastContactNote":"site questions + homeroom list"},
+{"name":"Mary Lin","event":"Mary Lin Fun Run","owner":"Melissa","test":false,"goal":100000,"raised":0,"donations":0,"classrooms":26,"start":"2026-09-02","end":"2026-09-18","lastContact":"2026-08-13","lastContactNote":"site email"},
+{"name":"Example Elementary","event":"Demo","owner":"Adeline","test":true,"goal":20000,"raised":5,"donations":1,"classrooms":8,"start":"2026-07-01","end":"2026-08-28","lastContact":null,"lastContactNote":""},
+{"name":"Oak Ridge Elementary","event":"Test","owner":"Adeline","test":true,"goal":1000,"raised":0,"donations":0,"classrooms":1,"start":"2026-08-12","end":"2026-08-26","lastContact":null,"lastContactNote":""}
+]};
+
+/* ============ STATE ============ */
+let DATA = null;
+let filterPhase = "attn";
+const LS_PUSH = "gfs_pushlog", LS_OVR = "gfs_override";
+
+/* ============ LOGIN ============ */
+if(sessionStorage.getItem("gfs_auth")==="1"){ showApp(); }
+function tryLogin(){
+  const v=document.getElementById("pw").value;
+  if(v===PASSWORD){ sessionStorage.setItem("gfs_auth","1"); showApp(); }
+  else { document.getElementById("pwerr").textContent="Incorrect password"; }
+}
+document.getElementById("pw").addEventListener("keydown",e=>{if(e.key==="Enter")tryLogin();});
+function showApp(){ document.getElementById("gate").style.display="none"; document.getElementById("app").style.display="block"; boot(); }
+
+/* ============ BOOT ============ */
+async function boot(){
+  try{
+    const r = await fetch("./data.json",{cache:"no-store"});
+    DATA = r.ok ? await r.json() : SEED;
+  }catch(e){ DATA = SEED; }
+  applyOverride();
+  wireFilters();
+  render();
+}
+
+/* ============ HELPERS ============ */
+const today = new Date(new Date().toDateString());
+function d(s){ return s? new Date(s+"T00:00:00") : null; }
+function daysBetween(a,b){ return Math.round((a-b)/86400000); }
+function fmt$(n){ return "$"+Math.round(n).toLocaleString(); }
+function isoToday(){ const z=new Date(); return z.getFullYear()+"-"+String(z.getMonth()+1).padStart(2,"0")+"-"+String(z.getDate()).padStart(2,"0"); }
+function prettyDate(s){ if(!s)return "—"; const x=d(s); return (x.getMonth()+1)+"/"+x.getDate(); }
+
+function phaseOf(s){
+  const ds=daysBetween(d(s.start),today), de=daysBetween(d(s.end),today);
+  if(de<0) return {key:"ended",label:"Ended",dStart:ds,dEnd:de};
+  if(ds>0) return {key:"soon",label:"Launches in "+ds+"d",dStart:ds,dEnd:de};
+  return {key:"live",label: de===0?"Ends today":"Live · "+de+"d left",dStart:ds,dEnd:de};
+}
+function pushLog(){ try{return JSON.parse(localStorage.getItem(LS_PUSH)||"{}");}catch(e){return {};} }
+function lastPush(s){
+  const pl=pushLog()[s.name]; const dates=[];
+  if(s.lastContact) dates.push(s.lastContact);
+  if(pl) dates.push(pl);
+  if(!dates.length) return null;
+  return dates.sort().slice(-1)[0];
+}
+
+/* ============ OVERRIDE (pasted CSV) ============ */
+function applyOverride(){
+  let ov; try{ ov=JSON.parse(localStorage.getItem(LS_OVR)||"null"); }catch(e){ov=null;}
+  if(!ov) return;
+  DATA.schools.forEach(s=>{
+    const u=ov[s.name.toLowerCase()];
+    if(u){ if(u.goal!=null)s.goal=u.goal; if(u.raised!=null)s.raised=u.raised; if(u.donations!=null)s.donations=u.donations; if(u.classrooms!=null)s.classrooms=u.classrooms; }
+  });
+  DATA._overridden = ov._ts || true;
+}
+function applyPaste(){
+  const txt=document.getElementById("pastebox").value.trim();
+  const msg=document.getElementById("pastemsg");
+  if(!txt){ msg.style.color="var(--bad)"; msg.textContent="Nothing pasted."; return; }
+  const lines=txt.split(/\r?\n/).filter(x=>x.trim());
+  const head=lines[0].toLowerCase().split(",").map(x=>x.trim());
+  const iName=head.findIndex(h=>h.includes("school")), iGoal=head.indexOf("goal"),
+        iR=head.findIndex(h=>h==="raised"), iD=head.findIndex(h=>h.includes("donation")),
+        iC=head.findIndex(h=>h.includes("class"));
+  if(iName<0||iR<0){ msg.style.color="var(--bad)"; msg.textContent="Need at least school_name and raised columns."; return; }
+  const ov={_ts:isoToday()}; let n=0;
+  for(let k=1;k<lines.length;k++){
+    const c=lines[k].split(",").map(x=>x.trim().replace(/^\$/,"").replace(/,/g,""));
+    if(!c[iName]) continue;
+    ov[c[iName].toLowerCase()]={
+      goal:iGoal>-1&&c[iGoal]!==""?+c[iGoal]:null,
+      raised:c[iR]!==""?+c[iR]:null,
+      donations:iD>-1&&c[iD]!==""?+c[iD]:null,
+      classrooms:iC>-1&&c[iC]!==""?+c[iC]:null
+    }; n++;
+  }
+  localStorage.setItem(LS_OVR,JSON.stringify(ov));
+  msg.style.color="var(--green-dk)"; msg.textContent="Updated "+n+" schools ✓";
+  boot();
+}
+function clearOverride(){ localStorage.removeItem(LS_OVR); document.getElementById("pastemsg").textContent="Cleared."; boot(); }
+function togglePaste(){ const p=document.getElementById("paste"); p.style.display=p.style.display==="block"?"none":"block"; }
+
+/* ============ FILTERS ============ */
+function wireFilters(){
+  document.querySelectorAll("#segPhase button").forEach(b=>{
+    b.onclick=()=>{ document.querySelectorAll("#segPhase button").forEach(x=>x.classList.remove("active")); b.classList.add("active"); filterPhase=b.dataset.f; render(); };
+  });
+  document.getElementById("showMelissa").onchange=render;
+  document.getElementById("showTest").onchange=render;
+}
+
+/* ============ RENDER ============ */
+function scoreOf(s){
+  // higher = more urgent
+  const ph=phaseOf(s), pct=s.goal? s.raised/s.goal*100:0;
+  const lp=lastPush(s), stale=lp?daysBetween(today,d(lp)):99;
+  let sc=0;
+  if(ph.key==="live"&&ph.dEnd<=3&&pct<70) sc+=100-ph.dEnd*5;
+  if(ph.key==="live"&&s.raised===0&&ph.dStart<=-2) sc+=60;
+  if(s.classrooms<=1) sc+=55;
+  if(stale>=STALE_BAD) sc+=40; else if(stale>=STALE_WARN) sc+=18;
+  if(ph.key==="live") sc+=20;
+  if(ph.key==="soon"&&ph.dStart<=2) sc+=15;
+  if(pct>=100) sc-=30;
+  return sc;
+}
+function render(){
+  const showM=document.getElementById("showMelissa").checked;
+  const showT=document.getElementById("showTest").checked;
+  let list=DATA.schools.filter(s=>(showT||!s.test)&&(showM||s.owner!=="Melissa"));
+
+  // KPIs (based on current filtered-by-owner set, excluding test always for money)
+  const money=list.filter(s=>!s.test);
+  const totRaised=money.reduce((a,s)=>a+s.raised,0), totGoal=money.reduce((a,s)=>a+s.goal,0);
+  const liveN=money.filter(s=>phaseOf(s).key==="live").length;
+  const soonWk=money.filter(s=>{const p=phaseOf(s);return p.key==="soon"&&p.dStart<=7;}).length;
+  const attnN=money.filter(s=>scoreOf(s)>=55).length;
+  document.getElementById("kpis").innerHTML=[
+    ["Active schools",money.length,""],
+    ["Raised",fmt$(totRaised),"live"],
+    ["Combined goal",fmt$(totGoal),""],
+    ["Overall",(totGoal?Math.round(totRaised/totGoal*100):0)+"%",""],
+    ["Live now",liveN,"live"],
+    ["Need attention",attnN,"attn"]
+  ].map(k=>`<div class="kpi ${k[2]}"><div class="lbl">${k[0]}</div><div class="val">${k[1]}</div></div>`).join("");
+
+  // phase filter
+  list=list.filter(s=>{
+    const p=phaseOf(s);
+    if(filterPhase==="live") return p.key==="live";
+    if(filterPhase==="soon") return p.key==="soon";
+    if(filterPhase==="attn") return scoreOf(s)>=40 || (p.key==="live");
+    return true;
+  });
+  list.sort((a,b)=>scoreOf(b)-scoreOf(a));
+
+  document.getElementById("grid").innerHTML = list.map(card).join("") || `<div class="foot">No schools in this view.</div>`;
+
+  const sub=document.getElementById("subline");
+  sub.textContent = "Data as of "+(DATA.generated||"today")+(DATA._overridden?" · your live updates applied":"")+" · "+money.length+" active schools";
+  document.getElementById("foot").innerHTML =
+    "Progress from Supabase · last-contact from Gmail/tracker · push marks saved on this device. "+
+    "Green ≥70% · amber 25–69% · red &lt;25%. Contact flag: amber ≥"+STALE_WARN+"d, red ≥"+STALE_BAD+"d.";
+}
+
+function card(s){
+  const ph=phaseOf(s), pct=s.goal? s.raised/s.goal*100:0;
+  const pc = pct>=70?"good":pct>=25?"warn":"bad";
+  const barc = pct>=100?"over":pct>=70?"":pct>=25?"warn":"bad";
+  const lp=lastPush(s), stale=lp?daysBetween(today,d(lp)):null;
+  const rl = scoreOf(s)>=70?"rl-bad":scoreOf(s)>=40?"rl-warn":pct>=100?"rl-good":ph.key==="live"?"rl-info":"";
+
+  // flags
+  const F=[];
+  if(pct>=100) F.push(["good","🎉 Over goal!"]);
+  if(ph.key==="live"&&ph.dEnd<=3&&ph.dEnd>=0&&pct<70) F.push(["bad","⏰ Ends in "+ph.dEnd+"d — final push"]);
+  if(s.classrooms<=1) F.push(["bad","⚠ Needs teacher list"]);
+  if(ph.key==="live"&&s.raised===0&&ph.dStart<=-2) F.push(["warn","⚠ Live but $0"]);
+  if(ph.key==="soon"&&ph.dStart<=2) F.push(["warn","🚀 Launches in "+ph.dStart+"d"]);
+  if(stale!=null&&stale>=STALE_BAD) F.push(["bad","📮 No contact "+stale+"d"]);
+
+  // push status
+  const pushedToday = lp===isoToday();
+  const dotc = stale==null?"a":stale>=STALE_BAD?"r":stale>=STALE_WARN?"a":"g";
+  const pushTxt = lp? (pushedToday?"Pushed today":"Last push "+stale+"d ago ("+prettyDate(lp)+")") : "No contact logged";
+  const note = s.lastContactNote? `<div class="note">“${s.lastContactNote}”</div>`:"";
+
+  return `<div class="card ${rl} ${s.owner==='Melissa'?'melissa':''}">
+    <div class="chead">
+      <div><h3>${s.name}${s.owner==='Melissa'?' <span style="font-size:10px;color:var(--muted);font-weight:700">· Melissa</span>':''}</h3><div class="event">${s.event||""}</div></div>
+      <span class="phase ${ph.key}">${ph.label}</span>
+    </div>
+    <div class="prog-row">
+      <div class="amt">${fmt$(s.raised)} <small>/ ${fmt$(s.goal)}</small></div>
+      <div class="pct ${pc}">${Math.round(pct)}%</div>
+    </div>
+    <div class="bar"><i class="${barc}" style="width:${Math.min(100,pct)}%"></i></div>
+    <div class="meta">
+      <span><b>${s.donations}</b> donations</span>
+      <span><b>${s.classrooms}</b> classrooms</span>
+      <span>${prettyDate(s.start)}–${prettyDate(s.end)}</span>
+    </div>
+    ${F.length?`<div class="flags">${F.map(f=>`<span class="flag ${f[0]}">${f[1]}</span>`).join("")}</div>`:""}
+    <div class="push">
+      <div class="info"><span class="dot ${dotc}"></span>${pushTxt}${note}</div>
+      <button class="${pushedToday?'done':''}" onclick="markPush('${s.name.replace(/'/g,"\\'")}')">${pushedToday?'✓ Pushed':'Mark push'}</button>
+    </div>
+  </div>`;
+}
+
+function markPush(name){
+  const pl=pushLog();
+  if(pl[name]===isoToday()) delete pl[name]; else pl[name]=isoToday();
+  localStorage.setItem(LS_PUSH,JSON.stringify(pl));
+  render();
+}
+</script>
+</body>
+</html>
